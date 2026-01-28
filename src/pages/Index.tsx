@@ -7,7 +7,7 @@ import { TimerDisplay } from "@/components/dashboard/TimerDisplay";
 import { ActionButtons } from "@/components/dashboard/ActionButtons";
 import { SessionInfo } from "@/components/dashboard/SessionInfo";
 import { GrindCard } from "@/components/dashboard/GrindCard";
-import { SubscriptionTimers } from "@/components/dashboard/SubscriptionTimers";
+
 import { useWorkSession } from "@/hooks/useWorkSession";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -30,7 +30,7 @@ const Index = () => {
     resumeWork,
     resetSession,
   } = useWorkSession();
-  const { subscriptions, loading: subsLoading } = useSubscriptions();
+
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -112,17 +112,7 @@ const Index = () => {
             </motion.p>
           </motion.div>
 
-          {/* Subscription Timers */}
-          {!subsLoading && subscriptions.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="mb-8"
-            >
-              <SubscriptionTimers subscriptions={subscriptions} />
-            </motion.div>
-          )}
+
 
           {/* Status Badge */}
           <motion.div

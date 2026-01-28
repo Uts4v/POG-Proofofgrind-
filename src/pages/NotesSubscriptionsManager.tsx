@@ -400,6 +400,7 @@ export default function NotesSubscriptionsManager() {
                           value={subName}
                           onChange={(e) => setSubName(e.target.value)}
                           placeholder="e.g., Claude Pro, Freepik Premium"
+                          className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-indigo-500 focus:ring-indigo-500 pr-10"
                         />
                       </div>
                       <div>
@@ -408,6 +409,7 @@ export default function NotesSubscriptionsManager() {
                           type="date"
                           value={subRenewedDate ? subRenewedDate.toISOString().split('T')[0] : ''}
                           onChange={(e) => setSubRenewedDate(e.target.value ? new Date(e.target.value) : undefined)}
+                          className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-indigo-500 focus:ring-indigo-500 pr-10"
                         />
                       </div>
                       <div>
@@ -416,6 +418,7 @@ export default function NotesSubscriptionsManager() {
                           type="date"
                           value={subDeadlineDate ? subDeadlineDate.toISOString().split('T')[0] : ''}
                           onChange={(e) => setSubDeadlineDate(e.target.value ? new Date(e.target.value) : undefined)}
+                          className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-indigo-500 focus:ring-indigo-500 pr-10"
                         />
                       </div>
                       <div>
@@ -425,6 +428,7 @@ export default function NotesSubscriptionsManager() {
                           value={subCost}
                           onChange={(e) => setSubCost(e.target.value)}
                           placeholder="0.00"
+                          className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-indigo-500 focus:ring-indigo-500 pr-10"
                         />
                       </div>
                     </div>
