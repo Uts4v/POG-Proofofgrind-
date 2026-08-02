@@ -25,14 +25,36 @@ export async function reverseGeocode(
   country: string;
 }> {
   const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
-  const res = await fetch(url, {
-    headers: {
-      // Nominatim requires a User-Agent identifying your app
-      "User-Agent": "TeaBreakTracker/1.0 (https://github.com/your-repo)"
-    },
-  });
-  if (!res.ok) throw new Error("Geocoding request failed");
-  const data = await res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        // Nominatim requires a User-Agent identifying your app
+        "User-Agent": "TeaBreakTracker/1.0 (https://github.com/your-repo)"
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error("Geocoding request failed");
+    const data = await res.json();
+    const a = data.address || {};
+    const parts = [
+      a.road || a.pedestrian || a.footway,
+      a.suburb || a.neighbourhood || a.quarter,
+      a.city || a.town || a.village || a.county,
+      a.state,
+      a.country,
+    ].filter(Boolean);
+
+    return {
+      label: parts.join(", ") || data.display_name || "Unknown Location",
+      fullAddress: data.display_name || "Unknown Location",
+      city: a.city || a.town || a.village || a.county || "",
+      country: a.country || "",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 
   const a = data.address || {};
   const parts = [
@@ -74,28 +96,41 @@ export function useLocationCapture() {
           reject(new Error("Geolocation is not supported by your browser."));
           return;
         }
+
+        let settled = false;
+        const finish = <T,>(fn: (v: T) => void, value: T) => {
+          if (!settled) { settled = true; fn(value); }
+        };
+
+        const onSuccess = (pos: GeolocationPosition) => finish(resolve, pos.coords);
+        const onError = (err: GeolocationPositionError) => {
+          switch (err.code) {
+            case err.PERMISSION_DENIED:
+              finish(reject, new Error(
+                "PERMISSION_DENIED: Location access was denied. Please allow location access to clock in."
+              ));
+              break;
+            case err.POSITION_UNAVAILABLE:
+              finish(reject, new Error("Location information is unavailable."));
+              break;
+            case err.TIMEOUT:
+              finish(reject, new Error("Location request timed out."));
+              break;
+            default:
+              finish(reject, new Error("An unknown location error occurred."));
+          }
+        };
+
+        // Fast attempt first (low accuracy, may use a cached fix).
         navigator.geolocation.getCurrentPosition(
-          (pos) => resolve(pos.coords),
-          (err) => {
-            switch (err.code) {
-              case err.PERMISSION_DENIED:
-                reject(
-                  new Error(
-                    "PERMISSION_DENIED: Location access was denied. Please allow location access to clock in."
-                  )
-                );
-                break;
-              case err.POSITION_UNAVAILABLE:
-                reject(new Error("Location information is unavailable."));
-                break;
-              case err.TIMEOUT:
-                reject(new Error("Location request timed out."));
-                break;
-              default:
-                reject(new Error("An unknown location error occurred."));
-            }
+          onSuccess,
+          () => {
+            // Fall back to a high-accuracy fix.
+            navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+              enableHighAccuracy: true, timeout: 8000, maximumAge: 0,
+            });
           },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          { enableHighAccuracy: false, timeout: 4000, maximumAge: 30000 }
         );
       });
 
@@ -115,8 +150,8 @@ export function useLocationCapture() {
 
       setLoading(false);
       return locationData;
-    } catch (err: any) {
-      setError(err?.message || String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
       throw err;
     }

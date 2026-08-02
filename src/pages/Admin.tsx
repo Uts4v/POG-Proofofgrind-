@@ -19,6 +19,7 @@ import AdminLocationView from "@/components/admin/AdminLocationView";
 import EmployeeLocationsMap from "@/components/admin/EmployeeLocationsMap";
 import AllEmployeesLocationsMap from "@/components/admin/AllEmployeesLocationsMap";
 import AttendanceCalendar from "@/components/admin/Attendencecalendar";
+import TeamAttendance from "@/components/admin/TeamAttendance";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -152,7 +153,7 @@ const Admin = () => {
   const [loading,       setLoading]       = useState(true);
   const [searchQuery,   setSearchQuery]   = useState("");
   const [error,         setError]         = useState<string|null>(null);
-  const [section, setSection] = useState<"overview"|"team"|"analytics"|"locations"|"subscriptions">("overview");
+  const [section, setSection] = useState<"overview"|"team"|"analytics"|"locations"|"subscriptions"|"attendance">("overview");
   const [selEmp,        setSelEmp]        = useState<UserWithStats|null>(null);
   const [empOpen,       setEmpOpen]       = useState(false);
   const [empLoading,    setEmpLoading]    = useState(false);
@@ -374,6 +375,7 @@ const Admin = () => {
   const NAV=[
     {id:"overview",      label:"Overview",      icon:LayoutDashboard},
     {id:"team",          label:"Team",          icon:Users},
+    {id:"attendance",    label:"Attendance",    icon:Calendar},
     {id:"analytics",     label:"Analytics",     icon:BarChart3},
     {id:"locations",     label:"Locations",     icon:MapIcon},
     {id:"subscriptions", label:"Subscriptions", icon:CreditCard},
@@ -665,6 +667,13 @@ const Admin = () => {
                   );
                 })}
               </div>
+            </motion.div>
+          )}
+
+          {/* ══════════════ ATTENDANCE ══════════════ */}
+          {section==="attendance" && (
+            <motion.div key="at" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.17}}>
+              <TeamAttendance users={users} />
             </motion.div>
           )}
 

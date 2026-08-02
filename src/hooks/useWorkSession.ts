@@ -17,7 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/integrations/firebase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
-import type { TimerStatus, WorkSession, BreakLog } from "@/integrations/firebase/types";
+import type { TimerStatus, WorkSession, BreakLog, ClockInLocation } from "@/integrations/firebase/types";
 import { toast } from "sonner";
 import { useLocationCapture } from "@/hooks/useLocation";  // new hook for geolocation
 
@@ -175,19 +175,8 @@ export const useWorkSession = () => {
     if (!user) return;
 
     try {
-      // try to get location data; if it fails we block the clock-in and show a toast
-      let locationData;
-      try {
-        console.log("Attempting to capture location...");
-        locationData = await captureLocation();
-        console.log("Location captured successfully:", locationData);
-      } catch (locErr: any) {
-        // permission denied or other error; surface to user
-        console.error("Location capture failed:", locErr);
-        toast.error(locErr?.message || "Failed to capture location. Clock-in blocked.");
-        throw locErr;
-      }
-
+      // Clock in immediately so the timer/UI starts without waiting on
+      // geolocation or reverse-geocoding (which can take seconds).
       const sessionData: Partial<WorkSession> = {
         userId: user.uid,
         date: today,
@@ -199,32 +188,54 @@ export const useWorkSession = () => {
         updatedAt: Timestamp.now(),
       };
 
-      if (locationData) {
-        sessionData.clockInLocation = locationData as any;
-      }
-
+      let newSession: WorkSession;
       if (session) {
         // Update existing session
-        const updatePayload: any = {
+        const updatePayload = {
           workStartTime: Timestamp.now(),
-          status: "working",
+          status: "working" as const,
           workEndTime: null,
           updatedAt: Timestamp.now(),
-        };
-        if (locationData) updatePayload.clockInLocation = locationData;
-
+        } as unknown as Parameters<typeof updateDoc>[1];
         await updateDoc(doc(db, "users", user.uid, "sessions", session.id), updatePayload);
-        setSession({ ...session, workStartTime: Timestamp.now(), status: "working", workEndTime: null, ...(locationData ? { clockInLocation: locationData } : {}) });
+        newSession = { ...session, workStartTime: Timestamp.now(), status: "working", workEndTime: null };
       } else {
         // Create new session
         const docRef = await addDoc(collection(db, "users", user.uid, "sessions"), sessionData);
-        setSession({ id: docRef.id, ...sessionData } as WorkSession);
+        newSession = { id: docRef.id, ...sessionData } as WorkSession;
       }
 
+      setSession(newSession);
       setBreakLogs([]);
+      toast.success("Clocked in!");
+
+      // Capture location in the background and attach it once ready —
+      // a slow/failed fix never blocks clock-in again.
+      captureLocation()
+        .then(async (locationData) => {
+          if (!locationData) return;
+          const payload = {
+            clockInLocation: locationData as ClockInLocation,
+            updatedAt: Timestamp.now(),
+          } as unknown as Parameters<typeof updateDoc>[1];
+          await updateDoc(doc(db, "users", user.uid, "sessions", newSession.id), payload);
+          setSession(prev =>
+            prev && prev.id === newSession.id
+              ? { ...prev, clockInLocation: locationData as ClockInLocation }
+              : prev
+          );
+        })
+        .catch((locErr: unknown) => {
+          console.error("Location capture failed:", locErr);
+          toast.error(
+            locErr instanceof Error && locErr.message
+              ? locErr.message
+              : "Could not capture your location."
+          );
+        });
     } catch (error) {
       console.error("Error clocking in:", error);
-      // error may already have been shown via toast
+      toast.error("Failed to clock in. Please try again.");
     }
   };
 
